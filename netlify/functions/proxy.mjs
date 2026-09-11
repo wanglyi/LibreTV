@@ -128,7 +128,8 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
         'User-Agent': getRandomUserAgent(),
         'Accept': requestHeaders['accept'] || '*/*',
         'Accept-Language': requestHeaders['accept-language'] || 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Referer': requestHeaders['referer'] || new URL(targetUrl).origin,
+        // 不转发本站 Referer，避免图片 CDN 将代理请求识别为外站盗链。
+        'Referer': new URL(targetUrl).origin,
     };
     Object.keys(headers).forEach(key => headers[key] === undefined || headers[key] === null || headers[key] === '' ? delete headers[key] : {});
     logDebug(`Fetching target: ${targetUrl} with headers: ${JSON.stringify(headers)}`);

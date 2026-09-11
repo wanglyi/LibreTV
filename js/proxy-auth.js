@@ -10,11 +10,22 @@ let cachedPasswordHash = null;
  * 获取当前会话的密码哈希
  */
 async function getPasswordHash() {
+    // 服务端会在 HTML 中注入当前密码哈希。它必须优先于浏览器旧缓存，
+    // 否则修改 PASSWORD 后，老用户会一直携带过期哈希并收到 401。
+    const serverPasswordHash = window.__ENV__ && window.__ENV__.PASSWORD;
+    if (serverPasswordHash) {
+        cachedPasswordHash = serverPasswordHash;
+        if (localStorage.getItem('proxyAuthHash') !== serverPasswordHash) {
+            localStorage.setItem('proxyAuthHash', serverPasswordHash);
+        }
+        return serverPasswordHash;
+    }
+
     if (cachedPasswordHash) {
         return cachedPasswordHash;
     }
-    
-    // 1. 优先从已存储的代理鉴权哈希获取
+
+    // 1. 从已存储的代理鉴权哈希获取
     const storedHash = localStorage.getItem('proxyAuthHash');
     if (storedHash) {
         cachedPasswordHash = storedHash;
@@ -43,12 +54,6 @@ async function getPasswordHash() {
         } catch (error) {
             console.error('生成密码哈希失败:', error);
         }
-    }
-    
-    // 4. 如果用户没有设置密码，尝试使用环境变量中的密码哈希
-    if (window.__ENV__ && window.__ENV__.PASSWORD) {
-        cachedPasswordHash = window.__ENV__.PASSWORD;
-        return window.__ENV__.PASSWORD;
     }
     
     return null;

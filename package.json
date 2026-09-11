@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "nodemon server.mjs",
     "start": "node server.mjs",
-    "test": "node tests/douban-cover-proxy.test.mjs"
+    "test": "node tests/douban-cover-proxy.test.mjs && node tests/proxy-auth.test.mjs"
   },
   "dependencies": {
     "axios": "^1.9.0",

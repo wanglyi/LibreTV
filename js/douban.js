@@ -499,6 +499,31 @@ async function fetchDoubanData(url) {
     }
 }
 
+// 豆瓣图片直连可能触发防盗链，失败后改用带鉴权参数的站内代理。
+async function loadDoubanCoverThroughProxy(image, originalCoverUrl) {
+    if (!image || !originalCoverUrl) {
+        return;
+    }
+
+    image.classList.add('object-contain');
+
+    try {
+        const proxyUrl = PROXY_URL + encodeURIComponent(originalCoverUrl);
+        const authenticatedProxyUrl = window.ProxyAuth?.addAuthToProxyUrl
+            ? await window.ProxyAuth.addAuthToProxyUrl(proxyUrl)
+            : proxyUrl;
+
+        // 代理仍然失败时使用站内图片，避免继续触发 onerror 循环。
+        image.addEventListener('error', function () {
+            image.src = 'image/logo-black.png';
+        }, { once: true });
+        image.src = authenticatedProxyUrl;
+    } catch (error) {
+        console.error('豆瓣封面代理加载失败：', error);
+        image.src = 'image/logo-black.png';
+    }
+}
+
 // 抽取渲染豆瓣卡片的逻辑到单独函数
 function renderDoubanCards(data, container) {
     // 创建文档片段以提高性能
@@ -528,19 +553,14 @@ function renderDoubanCards(data, container) {
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
             
-            // 处理图片URL
-            // 1. 直接使用豆瓣图片URL (添加no-referrer属性)
+            // 优先加载原图；若触发防盗链，再通过带鉴权的站内代理加载。
             const originalCoverUrl = item.cover;
-            
-            // 2. 也准备代理URL作为备选
-            const proxiedCoverUrl = PROXY_URL + encodeURIComponent(originalCoverUrl);
             
             // 为不同设备优化卡片布局
             card.innerHTML = `
                 <div class="relative w-full aspect-[2/3] overflow-hidden cursor-pointer" onclick="fillAndSearchWithDouban('${safeTitle}')">
-                    <img src="${originalCoverUrl}" alt="${safeTitle}" 
+                    <img alt="${safeTitle}"
                         class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                        onerror="this.onerror=null; this.src='${proxiedCoverUrl}'; this.classList.add('object-contain');"
                         loading="lazy" referrerpolicy="no-referrer">
                     <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60"></div>
                     <div class="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-sm">
@@ -560,6 +580,12 @@ function renderDoubanCards(data, container) {
                     </button>
                 </div>
             `;
+
+            const coverImage = card.querySelector('img');
+            coverImage.addEventListener('error', function () {
+                loadDoubanCoverThroughProxy(coverImage, originalCoverUrl);
+            }, { once: true });
+            coverImage.src = originalCoverUrl;
             
             fragment.appendChild(card);
         });

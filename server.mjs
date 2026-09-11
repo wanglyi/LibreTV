@@ -184,7 +184,11 @@ app.get('/proxy/:encodedUrl', async (req, res) => {
           responseType: 'stream',
           timeout: config.timeout,
           headers: {
-            'User-Agent': config.userAgent
+            'User-Agent': config.userAgent,
+            'Accept': '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            // 豆瓣等图片 CDN 会校验 Referer；使用目标站点来源避免被防盗链拦截。
+            'Referer': new URL(targetUrl).origin
           }
         });
       } catch (error) {

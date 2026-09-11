@@ -165,8 +165,10 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
         }
 
         // 读取响应内容
-        const content = await response.text();
         const contentType = response.headers.get('content-type') || '';
+        const content = contentType.toLowerCase().startsWith('image/')
+            ? Buffer.from(await response.arrayBuffer())
+            : await response.text();
         logDebug(`请求成功: ${targetUrl}, Content-Type: ${contentType}, 内容长度: ${content.length}`);
         // 返回结果
         return { content, contentType, responseHeaders: response.headers };

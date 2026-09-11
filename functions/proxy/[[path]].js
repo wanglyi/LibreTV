@@ -269,9 +269,11 @@ export async function onRequest(context) {
                  throw new Error(`HTTP error ${response.status}: ${response.statusText}. URL: ${targetUrl}. Body: ${errorBody.substring(0, 150)}`);
             }
 
-            // 读取响应内容为文本
-            const content = await response.text();
             const contentType = response.headers.get('Content-Type') || '';
+            // 图片不能经过 UTF-8 文本解码，否则 JPEG/PNG 字节会被替换并损坏。
+            const content = contentType.toLowerCase().startsWith('image/')
+                ? await response.arrayBuffer()
+                : await response.text();
             logDebug(`请求成功: ${targetUrl}, Content-Type: ${contentType}, 内容长度: ${content.length}`);
             return { content, contentType, responseHeaders: response.headers }; // 同时返回原始响应头
 
@@ -520,6 +522,9 @@ export async function onRequest(context) {
                     let headers = {};
                     try { headers = JSON.parse(cachedData.headers); } catch(e){} // 解析头部
                     const contentType = headers['content-type'] || headers['Content-Type'] || '';
+                    if (contentType.toLowerCase().startsWith('image/')) {
+                        throw new Error('忽略旧版文本格式的图片缓存，重新获取原始字节');
+                    }
 
                     if (isM3u8Content(content, contentType)) {
                         logDebug(`缓存内容是 M3U8，重新处理: ${targetUrl}`);
@@ -542,7 +547,7 @@ export async function onRequest(context) {
         const { content, contentType, responseHeaders } = await fetchContentWithType(targetUrl);
 
         // --- 写入缓存 (KV) ---
-        if (kvNamespace) {
+        if (kvNamespace && typeof content === 'string') {
              try {
                  const headersToCache = {};
                  responseHeaders.forEach((value, key) => { headersToCache[key.toLowerCase()] = value; });
@@ -564,6 +569,9 @@ export async function onRequest(context) {
         } else {
             logDebug(`内容不是 M3U8 (类型: ${contentType})，直接返回: ${targetUrl}`);
             const finalHeaders = new Headers(responseHeaders);
+            // fetch 已解码传输内容，不能继续发送上游压缩标记及原始长度。
+            finalHeaders.delete('Content-Encoding');
+            finalHeaders.delete('Content-Length');
             finalHeaders.set('Cache-Control', `public, max-age=${CACHE_TTL}`);
             // 添加 CORS 头，确保非 M3U8 内容也能跨域访问（例如图片、字幕文件等）
             finalHeaders.set("Access-Control-Allow-Origin", "*");

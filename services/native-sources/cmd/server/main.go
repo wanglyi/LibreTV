@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -352,8 +353,9 @@ func (s *server) runJob(ctx context.Context, j *job, t ticket) {
 	}
 	args = append(args, "-i", plan.URL, "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-threads", "1", "-f", "hls", "-hls_time", "4", "-hls_list_size", "0", "-hls_playlist_type", "event", "-hls_flags", "independent_segments+temp_file", "-hls_segment_filename", filepath.Join(j.dir, "seg%06d.ts"), filepath.Join(j.dir, "index.m3u8"))
 	command := exec.CommandContext(ctx, s.ffmpeg, args...)
+	var diagnostic bytes.Buffer
 	command.Stdout = io.Discard
-	command.Stderr = io.Discard
+	command.Stderr = &diagnostic
 	if err = command.Start(); err != nil {
 		s.finishJob(j, errors.New("无法启动视频准备服务"))
 		return
@@ -368,6 +370,11 @@ func (s *server) runJob(ctx context.Context, j *job, t ticket) {
 		select {
 		case err = <-done:
 			if err != nil {
+				message := strings.TrimSpace(diagnostic.String())
+				if len(message) > 4000 {
+					message = message[len(message)-4000:]
+				}
+				log.Printf("video preparation failed source=%s id=%s episode=%d error=%v detail=%s", t.Source, t.ID, t.Episode+1, err, message)
 				err = errors.New("视频准备失败，请重新获取播放地址或换一集")
 			}
 			s.finishJob(j, err)
@@ -404,7 +411,7 @@ func (s *server) play(w http.ResponseWriter, r *http.Request, raw, file string) 
 	case <-current.ready:
 	case <-r.Context().Done():
 		return
-	case <-time.After(40 * time.Second):
+	case <-time.After(8 * time.Second):
 		w.Header().Set("Retry-After", "3")
 		fail(w, 503, "视频仍在准备，请稍后重试")
 		return

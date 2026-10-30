@@ -452,7 +452,10 @@ function initPlayer(videoUrl) {
     };
     if (window.NativeSources?.isNativeUrl(videoUrl)) {
         hlsConfig.startPosition = 0;
-        hlsConfig.manifestLoadingTimeOut = 60000;
+        hlsConfig.manifestLoadingTimeOut = 15000;
+        hlsConfig.manifestLoadingMaxRetry = 20;
+        hlsConfig.manifestLoadingRetryDelay = 3000;
+        hlsConfig.manifestLoadingMaxRetryTimeout = 10000;
         hlsConfig.levelLoadingTimeOut = 60000;
         hlsConfig.fragLoadingTimeOut = 30000;
     }

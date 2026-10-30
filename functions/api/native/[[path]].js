@@ -39,16 +39,6 @@ export async function onRequest(context) {
     if(route==='config') return json({enabled:configured,sources:configured?SOURCES:[]});
     if(!configured) return json({code:503,msg:'新增片源暂未启用'},503);
     if(route==='session') return json({authenticated:await validSession(request,env)});
-    if(route==='status') {
-        if(!await validSession(request,env))return json({code:401},401);
-        let configured;
-        try{configured=new URL(env.NATIVE_SOURCE_ORIGIN)}catch{return json({code:503,origin:'invalid'},503)}
-        const probe=async target=>{
-            try{const response=await fetch(target,{headers:{'Accept-Encoding':'identity'},redirect:'manual'});return {ok:true,status:response.status,type:response.headers.get('Content-Type'),body:(await response.text()).slice(0,100)}}
-            catch(error){return {ok:false,name:error?.name||'Error',message:String(error?.message||'fetch failed').slice(0,120)}}
-        };
-        return json({origin:configured.origin,external:await probe('https://example.com/'),source:await probe(new URL('/healthz',configured).toString())});
-    }
     if(route==='login') {
         if(request.method!=='POST')return json({code:405},405);
         if(url.protocol!=='https:' && !['localhost','127.0.0.1'].includes(url.hostname))return json({code:400,msg:'请使用 HTTPS 访问'},400);

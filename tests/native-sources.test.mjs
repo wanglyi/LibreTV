@@ -20,14 +20,16 @@ const originalFetch=globalThis.fetch;
 let calls=0;
 globalThis.fetch=async(url,options)=>{
     calls++;
-    assert.equal(new URL(url).origin,env.NATIVE_SOURCE_ORIGIN);
+    const upstream=new URL(url);
+    assert.equal(upstream.origin,env.NATIVE_SOURCE_ORIGIN);
+    if(upstream.pathname.includes('/vod/'))assert.equal(upstream.searchParams.get('type'),'comic_series');
     assert.equal(options.headers.get('X-Source-Token'),env.NATIVE_SOURCE_TOKEN);
     assert.equal(options.headers.get('Cookie'),null);
     assert.equal(options.redirect,'manual');
     return new Response(new Uint8Array([0x47,0x80,0xff,0x00]),{headers:{'Content-Type':'video/mp2t','Content-Length':'1','Content-Encoding':'gzip'}});
 };
 try{
-    const api=await run('vod/hongguo?wd=test&url=http://localhost',{headers:{Cookie:cookie}});
+    const api=await run('vod/hongguo?wd=test&type=comic_series&url=http://localhost',{headers:{Cookie:cookie}});
     assert.equal(api.status,200);
     const media=await run('play/abc.'+'x'.repeat(43)+'/seg000001.ts');
     assert.equal(media.headers.get('Content-Length'),null);

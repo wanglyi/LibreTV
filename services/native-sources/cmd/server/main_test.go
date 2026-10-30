@@ -34,6 +34,7 @@ func TestOnlyAuthorizedBoundedRoutesAreExposed(t *testing.T) {
 		{"/vod/hongguo?wd=example", "", 401},
 		{"/vod/unknown", app.token, 404},
 		{"/vod/hongguo?ids=../../etc/passwd", app.token, 400},
+		{"/vod/hongguo?type=../../comic", app.token, 400},
 		{"/play/invalid/private.env", app.token, 404},
 		{"/play/invalid/index.m3u8", app.token, 401},
 		{"/initialize", app.token, 404},

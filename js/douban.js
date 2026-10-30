@@ -257,68 +257,43 @@ async function fillAndSearchWithDouban(title) {
 
 // 渲染电影/电视剧切换器
 function renderDoubanMovieTvSwitch() {
-    // 获取切换按钮元素
-    const movieToggle = document.getElementById('douban-movie-toggle');
-    const tvToggle = document.getElementById('douban-tv-toggle');
+    const toggles = {
+        movie: document.getElementById('douban-movie-toggle'),
+        tv: document.getElementById('douban-tv-toggle'),
+        comic: document.getElementById('douban-comic-toggle')
+    };
+    if (Object.values(toggles).some(toggle => !toggle)) return;
 
-    if (!movieToggle ||!tvToggle) return;
-
-    movieToggle.addEventListener('click', function() {
-        if (doubanMovieTvCurrentSwitch !== 'movie') {
-            // 更新按钮样式
-            movieToggle.classList.add('bg-pink-600', 'text-white');
-            movieToggle.classList.remove('text-gray-300');
-            
-            tvToggle.classList.remove('bg-pink-600', 'text-white');
-            tvToggle.classList.add('text-gray-300');
-            
-            doubanMovieTvCurrentSwitch = 'movie';
-            doubanCurrentTag = '热门';
-
-            // 重新加载豆瓣内容
-            renderDoubanTags(movieTags);
-
-            // 换一批按钮事件监听
-            setupDoubanRefreshBtn();
-            
-            // 初始加载热门内容
-            if (localStorage.getItem('doubanEnabled') === 'true') {
-                renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
-            }
+    const activate = type => {
+        if (doubanMovieTvCurrentSwitch === type) return;
+        doubanMovieTvCurrentSwitch = type;
+        doubanCurrentTag = type === 'comic' ? '红果漫剧' : '热门';
+        doubanPageStart = 0;
+        Object.entries(toggles).forEach(([key, toggle]) => {
+            toggle.classList.toggle('bg-pink-600', key === type);
+            toggle.classList.toggle('text-white', key === type);
+            toggle.classList.toggle('text-gray-300', key !== type);
+        });
+        const title = document.getElementById('recommend-title');
+        if (title) title.textContent = type === 'comic' ? '漫剧推荐' : '豆瓣热门';
+        renderDoubanTags();
+        setupDoubanRefreshBtn();
+        if (localStorage.getItem('doubanEnabled') === 'true') {
+            renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
         }
-    });
-    
-    // 电视剧按钮点击事件
-    tvToggle.addEventListener('click', function() {
-        if (doubanMovieTvCurrentSwitch !== 'tv') {
-            // 更新按钮样式
-            tvToggle.classList.add('bg-pink-600', 'text-white');
-            tvToggle.classList.remove('text-gray-300');
-            
-            movieToggle.classList.remove('bg-pink-600', 'text-white');
-            movieToggle.classList.add('text-gray-300');
-            
-            doubanMovieTvCurrentSwitch = 'tv';
-            doubanCurrentTag = '热门';
-
-            // 重新加载豆瓣内容
-            renderDoubanTags(tvTags);
-
-            // 换一批按钮事件监听
-            setupDoubanRefreshBtn();
-            
-            // 初始加载热门内容
-            if (localStorage.getItem('doubanEnabled') === 'true') {
-                renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
-            }
-        }
-    });
+    };
+    Object.entries(toggles).forEach(([type, toggle]) => toggle.addEventListener('click', () => activate(type)));
 }
 
 // 渲染豆瓣标签选择器
 function renderDoubanTags(tags) {
     const tagContainer = document.getElementById('douban-tags');
     if (!tagContainer) return;
+
+    if (doubanMovieTvCurrentSwitch === 'comic') {
+        tagContainer.innerHTML = '<span class="py-1.5 px-3.5 rounded text-sm font-medium bg-pink-600 text-white border border-white">红果漫剧</span>';
+        return;
+    }
     
     // 确定当前应该使用的标签列表
     const currentTags = doubanMovieTvCurrentSwitch === 'movie' ? movieTags : tvTags;
@@ -373,7 +348,8 @@ function setupDoubanRefreshBtn() {
     
     btn.onclick = function() {
         doubanPageStart += doubanPageSize;
-        if (doubanPageStart > 9 * doubanPageSize) {
+        const maxBatch = doubanMovieTvCurrentSwitch === 'comic' ? 4 : 9;
+        if (doubanPageStart > maxBatch * doubanPageSize) {
             doubanPageStart = 0;
         }
         
@@ -422,6 +398,11 @@ function renderRecommend(tag, pageLimit, pageStart) {
 
     container.classList.add("relative");
     container.insertAdjacentHTML('beforeend', loadingOverlayHTML);
+
+    if (doubanMovieTvCurrentSwitch === 'comic') {
+        renderComicRecommend(container, pageLimit, pageStart);
+        return;
+    }
     
     const target = `https://movie.douban.com/j/search_subjects?type=${doubanMovieTvCurrentSwitch}&tag=${tag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
     
@@ -439,6 +420,66 @@ function renderRecommend(tag, pageLimit, pageStart) {
                 </div>
             `;
         });
+}
+
+async function renderComicRecommend(container, pageLimit, pageStart) {
+    try {
+        if (!window.NativeSources) throw new Error('漫剧片源尚未启用');
+        await window.NativeSources.ready;
+        if (!window.NativeSources.state.enabled) throw new Error('漫剧片源尚未启用');
+        const page = Math.floor(pageStart / pageLimit) + 1;
+        const requestUrl = await window.NativeSources.requestUrl(`/api/native/vod/hongguo?ac=videolist&type=comic_series&pg=${page}`);
+        const response = await fetch(requestUrl, {cache: 'no-store'});
+        if (response.status === 401) window.NativeSources.requireLogin();
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.list)) throw new Error(data.msg || '漫剧加载失败');
+        renderComicCards(data.list, container);
+    } catch (error) {
+        console.error('获取漫剧推荐失败：', error);
+        container.innerHTML = `<div class="col-span-full text-center py-8"><div class="text-red-400">❌ ${error.message || '漫剧加载失败，请稍后重试'}</div></div>`;
+    }
+}
+
+function renderComicCards(items, container) {
+    const fragment = document.createDocumentFragment();
+    if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'col-span-full text-center py-8 text-pink-500';
+        empty.textContent = '暂无更多漫剧，请稍后刷新';
+        fragment.appendChild(empty);
+    }
+    items.forEach(item => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'bg-[#111] hover:bg-[#222] transition-all duration-300 rounded-lg overflow-hidden flex flex-col transform hover:scale-105 shadow-md hover:shadow-lg text-left';
+        card.addEventListener('click', () => showDetails(String(item.vod_id), item.vod_name || '未知漫剧', 'native_hongguo'));
+        const poster = document.createElement('div');
+        poster.className = 'relative w-full aspect-[2/3] overflow-hidden';
+        const image = document.createElement('img');
+        image.alt = item.vod_name || '漫剧封面';
+        image.className = 'w-full h-full object-cover transition-transform duration-500 hover:scale-110';
+        image.loading = 'lazy';
+        image.referrerPolicy = 'no-referrer';
+        image.addEventListener('error', () => { image.src = 'image/logo-black.png'; image.classList.add('object-contain'); }, {once: true});
+        image.src = item.vod_pic || 'image/logo-black.png';
+        const shade = document.createElement('div');
+        shade.className = 'absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60';
+        const badge = document.createElement('div');
+        badge.className = 'absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-sm';
+        badge.textContent = item.vod_remarks || '红果漫剧';
+        poster.append(image, shade, badge);
+        const footer = document.createElement('div');
+        footer.className = 'p-2 text-center bg-[#111] w-full';
+        const title = document.createElement('div');
+        title.className = 'text-sm font-medium text-white truncate w-full';
+        title.title = item.vod_name || '';
+        title.textContent = item.vod_name || '未知漫剧';
+        footer.appendChild(title);
+        card.append(poster, footer);
+        fragment.appendChild(card);
+    });
+    container.innerHTML = '';
+    container.appendChild(fragment);
 }
 
 async function fetchDoubanData(url) {

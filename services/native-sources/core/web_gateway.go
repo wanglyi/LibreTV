@@ -22,8 +22,8 @@ func NewWebGateway(directory string) (*WebGateway, error) {
 	return &WebGateway{engine: engine}, nil
 }
 
-func (gateway *WebGateway) Catalog(ctx context.Context, source, query string, page int) (WebCatalog, error) {
-	return gateway.engine.nativeCatalog(ctx, nativeInput{Source: source, Query: query, Page: page})
+func (gateway *WebGateway) Catalog(ctx context.Context, source, query, category string, page int) (WebCatalog, error) {
+	return gateway.engine.nativeCatalog(ctx, nativeInput{Source: source, Query: query, Category: category, Page: page})
 }
 
 func (gateway *WebGateway) Detail(ctx context.Context, source, id string) (WebDetail, error) {

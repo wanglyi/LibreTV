@@ -61,7 +61,7 @@ export async function onRequest(context) {
         if(upstream.protocol!=='https:' || upstream.username || upstream.password || upstream.search || upstream.hash)throw new Error();
     } catch {return json({code:503,msg:'片源服务配置无效'},503)}
     upstream.pathname=upstream.pathname.replace(/\/$/,'')+'/'+route;
-    if(vod) for(const key of ['ac','wd','ids','pg']) { const value=url.searchParams.get(key);if(value!==null)upstream.searchParams.set(key,value); }
+    if(vod) for(const key of ['ac','wd','ids','pg','type']) { const value=url.searchParams.get(key);if(value!==null)upstream.searchParams.set(key,value); }
     const headers=new Headers({'X-Source-Token':env.NATIVE_SOURCE_TOKEN,'Accept-Encoding':'identity'});
     if(media && request.headers.has('Range')) headers.set('Range',request.headers.get('Range'));
     try {

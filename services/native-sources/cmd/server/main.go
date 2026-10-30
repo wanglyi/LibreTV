@@ -270,7 +270,12 @@ func (s *server) vod(w http.ResponseWriter, r *http.Request, source string) {
 		fail(w, 400, "页码超出范围")
 		return
 	}
-	result, err := s.gateway.Catalog(ctx, source, query, page)
+	category := strings.TrimSpace(r.URL.Query().Get("type"))
+	if category != "" && (source != "hongguo" || category != "short_play" && category != "comic_series" && category != "ai_series") {
+		fail(w, 400, "无效内容分类")
+		return
+	}
+	result, err := s.gateway.Catalog(ctx, source, query, category, page)
 	if err != nil {
 		fail(w, 502, err.Error())
 		return

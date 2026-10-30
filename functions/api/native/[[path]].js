@@ -39,6 +39,14 @@ export async function onRequest(context) {
     if(route==='config') return json({enabled:configured,sources:configured?SOURCES:[]});
     if(!configured) return json({code:503,msg:'新增片源暂未启用'},503);
     if(route==='session') return json({authenticated:await validSession(request,env)});
+    if(route==='status') {
+        if(!await validSession(request,env))return json({code:401},401);
+        try {
+            const target=new URL(env.NATIVE_SOURCE_ORIGIN);target.pathname=target.pathname.replace(/\/$/,'')+'/healthz';
+            const health=await fetch(target.toString(),{headers:{'X-Source-Token':env.NATIVE_SOURCE_TOKEN,'Accept-Encoding':'identity','User-Agent':'LibreTV-Native-Gateway/1.0'},redirect:'error'});
+            return json({origin:target.hostname,status:health.status,type:health.headers.get('Content-Type'),response:(await health.text()).slice(0,200)});
+        } catch {return json({code:502,msg:'站源服务连接失败'},502)}
+    }
     if(route==='login') {
         if(request.method!=='POST')return json({code:405},405);
         if(url.protocol!=='https:' && !['localhost','127.0.0.1'].includes(url.hostname))return json({code:400,msg:'请使用 HTTPS 访问'},400);
@@ -66,7 +74,7 @@ export async function onRequest(context) {
     if(media && request.headers.has('Range')) headers.set('Range',request.headers.get('Range'));
     try {
         const result=await fetch(upstream.toString(),{method:request.method,headers,redirect:'error',signal:request.signal});
-        const responseHeaders=new Headers({'X-Content-Type-Options':'nosniff','Cache-Control':media&&!route.endsWith('.m3u8')?'private, max-age=60':'no-store'});
+        const responseHeaders=new Headers({'X-Content-Type-Options':'nosniff','X-Native-Upstream-Status':String(result.status),'Cache-Control':media&&!route.endsWith('.m3u8')?'private, max-age=60':'no-store'});
         for(const key of ['Content-Type','Content-Range','Accept-Ranges','Retry-After'])if(result.headers.has(key))responseHeaders.set(key,result.headers.get(key));
         return new Response(result.body,{status:result.status,headers:responseHeaders});
     } catch {return json({code:502,msg:'片源服务暂时无法连接，请稍后重试'},502)}

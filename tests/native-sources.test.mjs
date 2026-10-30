@@ -23,7 +23,7 @@ globalThis.fetch=async(url,options)=>{
     assert.equal(new URL(url).origin,env.NATIVE_SOURCE_ORIGIN);
     assert.equal(options.headers.get('X-Source-Token'),env.NATIVE_SOURCE_TOKEN);
     assert.equal(options.headers.get('Cookie'),null);
-    assert.equal(options.redirect,'error');
+    assert.equal(options.redirect,'manual');
     return new Response(new Uint8Array([0x47,0x80,0xff,0x00]),{headers:{'Content-Type':'video/mp2t','Content-Length':'1','Content-Encoding':'gzip'}});
 };
 try{

@@ -44,7 +44,7 @@ export async function onRequest(context) {
         let configured;
         try{configured=new URL(env.NATIVE_SOURCE_ORIGIN)}catch{return json({code:503,origin:'invalid'},503)}
         const probe=async target=>{
-            try{const response=await fetch(target,{headers:{'Accept-Encoding':'identity'},redirect:'error'});return {ok:true,status:response.status,type:response.headers.get('Content-Type'),body:(await response.text()).slice(0,100)}}
+            try{const response=await fetch(target,{headers:{'Accept-Encoding':'identity'},redirect:'manual'});return {ok:true,status:response.status,type:response.headers.get('Content-Type'),body:(await response.text()).slice(0,100)}}
             catch(error){return {ok:false,name:error?.name||'Error',message:String(error?.message||'fetch failed').slice(0,120)}}
         };
         return json({origin:configured.origin,external:await probe('https://example.com/'),source:await probe(new URL('/healthz',configured).toString())});
@@ -75,7 +75,8 @@ export async function onRequest(context) {
     const headers=new Headers({'X-Source-Token':env.NATIVE_SOURCE_TOKEN,'Accept-Encoding':'identity'});
     if(media && request.headers.has('Range')) headers.set('Range',request.headers.get('Range'));
     try {
-        const result=await fetch(upstream.toString(),{method:request.method,headers,redirect:'error',signal:request.signal});
+        const result=await fetch(upstream.toString(),{method:request.method,headers,redirect:'manual',signal:request.signal});
+        if(result.status>=300 && result.status<400)return json({code:502,msg:'片源服务返回了不允许的重定向'},502);
         const responseHeaders=new Headers({'X-Content-Type-Options':'nosniff','X-Native-Upstream-Status':String(result.status),'Cache-Control':media&&!route.endsWith('.m3u8')?'private, max-age=60':'no-store'});
         for(const key of ['Content-Type','Content-Range','Accept-Ranges','Retry-After'])if(result.headers.has(key))responseHeaders.set(key,result.headers.get(key));
         return new Response(result.body,{status:result.status,headers:responseHeaders});

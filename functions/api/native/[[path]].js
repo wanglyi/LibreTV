@@ -39,15 +39,6 @@ export async function onRequest(context) {
     if(route==='config') return json({enabled:configured,sources:configured?SOURCES:[]});
     if(!configured) return json({code:503,msg:'新增片源暂未启用'},503);
     if(route==='session') return json({authenticated:await validSession(request,env)});
-    if(route==='status') {
-        if(!await validSession(request,env))return json({code:401},401);
-        try {
-            const target=new URL(env.NATIVE_SOURCE_ORIGIN);target.pathname=target.pathname.replace(/\/$/,'')+'/healthz';
-            if(url.searchParams.get('inspect')==='1')return json({origin:target.origin,path:target.pathname,tokenLength:env.NATIVE_SOURCE_TOKEN.length,tokenFormat:/^[A-Za-z0-9_-]+$/.test(env.NATIVE_SOURCE_TOKEN),tokenFingerprint:(await passwordDigest(env.NATIVE_SOURCE_TOKEN)).slice(0,12)});
-            const health=await fetch(target.toString(),{headers:{'Accept-Encoding':'identity','User-Agent':'LibreTV-Native-Gateway/1.0'},redirect:'error'});
-            return json({origin:target.hostname,status:health.status,type:health.headers.get('Content-Type'),response:(await health.text()).slice(0,200)});
-        } catch {return json({code:502,msg:'站源服务连接失败'},502)}
-    }
     if(route==='login') {
         if(request.method!=='POST')return json({code:405},405);
         if(url.protocol!=='https:' && !['localhost','127.0.0.1'].includes(url.hostname))return json({code:400,msg:'请使用 HTTPS 访问'},400);

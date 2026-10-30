@@ -24,12 +24,14 @@ globalThis.fetch=async(url,options)=>{
     assert.equal(options.headers.get('X-Source-Token'),env.NATIVE_SOURCE_TOKEN);
     assert.equal(options.headers.get('Cookie'),null);
     assert.equal(options.redirect,'error');
-    return new Response(new Uint8Array([0x47,0x80,0xff,0x00]),{headers:{'Content-Type':'video/mp2t'}});
+    return new Response(new Uint8Array([0x47,0x80,0xff,0x00]),{headers:{'Content-Type':'video/mp2t','Content-Length':'1','Content-Encoding':'gzip'}});
 };
 try{
     const api=await run('vod/hongguo?wd=test&url=http://localhost',{headers:{Cookie:cookie}});
     assert.equal(api.status,200);
     const media=await run('play/abc.'+'x'.repeat(43)+'/seg000001.ts');
+    assert.equal(media.headers.get('Content-Length'),null);
+    assert.equal(media.headers.get('Content-Encoding'),null);
     assert.deepEqual(new Uint8Array(await media.arrayBuffer()),new Uint8Array([0x47,0x80,0xff,0x00]));
     assert.equal((await run('play/abc.'+'x'.repeat(43)+'/private.env')).status,404);
     assert.equal((await run('vod/unknown',{headers:{Cookie:cookie}})).status,404);

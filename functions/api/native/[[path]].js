@@ -62,12 +62,12 @@ export async function onRequest(context) {
     } catch {return json({code:503,msg:'片源服务配置无效'},503)}
     upstream.pathname=upstream.pathname.replace(/\/$/,'')+'/'+route;
     if(vod) for(const key of ['ac','wd','ids','pg']) { const value=url.searchParams.get(key);if(value!==null)upstream.searchParams.set(key,value); }
-    const headers=new Headers({'X-Source-Token':env.NATIVE_SOURCE_TOKEN});
+    const headers=new Headers({'X-Source-Token':env.NATIVE_SOURCE_TOKEN,'Accept-Encoding':'identity'});
     if(media && request.headers.has('Range')) headers.set('Range',request.headers.get('Range'));
     try {
         const result=await fetch(upstream.toString(),{method:request.method,headers,redirect:'error',signal:request.signal});
         const responseHeaders=new Headers({'X-Content-Type-Options':'nosniff','Cache-Control':media&&!route.endsWith('.m3u8')?'private, max-age=60':'no-store'});
-        for(const key of ['Content-Type','Content-Length','Content-Range','Accept-Ranges','Retry-After'])if(result.headers.has(key))responseHeaders.set(key,result.headers.get(key));
+        for(const key of ['Content-Type','Content-Range','Accept-Ranges','Retry-After'])if(result.headers.has(key))responseHeaders.set(key,result.headers.get(key));
         return new Response(result.body,{status:result.status,headers:responseHeaders});
     } catch {return json({code:502,msg:'片源服务暂时无法连接，请稍后重试'},502)}
 }

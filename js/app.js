@@ -12,7 +12,8 @@ let currentVideoTitle = '';
 let episodesReversed = false;
 
 // 页面初始化
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    if (window.NativeSources) await window.NativeSources.ready;
     // 初始化API复选框
     initAPICheckboxes();
 
@@ -42,6 +43,17 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem('hasInitializedDefaults', 'true');
     }
 
+    if (window.NativeSources?.state.enabled) {
+        const known = JSON.parse(localStorage.getItem('nativeSourceDefaults') || '[]');
+        for (const id of window.NativeSources.state.ids) {
+            if (!known.includes(id) && !selectedAPIs.includes(id)) selectedAPIs.push(id);
+        }
+        localStorage.setItem('nativeSourceDefaults', JSON.stringify(window.NativeSources.state.ids));
+        localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+        initAPICheckboxes();
+        updateSelectedApiCount();
+    }
+
     // 设置黄色内容过滤器开关初始状态
     const yellowFilterToggle = document.getElementById('yellowFilterToggle');
     if (yellowFilterToggle) {
@@ -56,6 +68,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 设置事件监听器
     setupEventListeners();
+
+    if (window.NativeSources?.state.enabled && !window.NativeSources.state.authenticated && isPasswordVerified()) {
+        showPasswordModal();
+    }
 
     // 初始检查成人API选中状态
     setTimeout(checkAdultAPIsSelected, 100);

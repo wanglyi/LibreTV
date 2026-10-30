@@ -83,6 +83,11 @@ async function addAuthToProxyUrl(url) {
     }
 }
 
+async function buildApiRequestUrl(url) {
+    if (window.NativeSources) return window.NativeSources.requestUrl(url);
+    return addAuthToProxyUrl(PROXY_URL + encodeURIComponent(url));
+}
+
 /**
  * 验证代理请求的鉴权
  */

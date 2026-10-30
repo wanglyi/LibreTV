@@ -26,13 +26,11 @@ async function handleApiRequest(url) {
             
             // 添加超时处理
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), API_SITES[source]?.native ? 50000 : 10000);
             
             try {
                 // 添加鉴权参数到代理URL
-                const proxiedUrl = await window.ProxyAuth?.addAuthToProxyUrl ? 
-                    await window.ProxyAuth.addAuthToProxyUrl(PROXY_URL + encodeURIComponent(apiUrl)) :
-                    PROXY_URL + encodeURIComponent(apiUrl);
+                const proxiedUrl = await buildApiRequestUrl(apiUrl);
                     
                 const response = await fetch(proxiedUrl, {
                     headers: API_CONFIG.search.headers,
@@ -115,13 +113,11 @@ async function handleApiRequest(url) {
             
             // 添加超时处理
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), API_SITES[sourceCode]?.native ? 50000 : 10000);
             
             try {
                 // 添加鉴权参数到代理URL
-                const proxiedUrl = await window.ProxyAuth?.addAuthToProxyUrl ? 
-                    await window.ProxyAuth.addAuthToProxyUrl(PROXY_URL + encodeURIComponent(detailUrl)) :
-                    PROXY_URL + encodeURIComponent(detailUrl);
+                const proxiedUrl = await buildApiRequestUrl(detailUrl);
                     
                 const response = await fetch(proxiedUrl, {
                     headers: API_CONFIG.detail.headers,
@@ -578,9 +574,15 @@ async function handleMultipleCustomSearch(searchQuery, customApiUrls) {
     const originalFetch = window.fetch;
     
     window.fetch = async function(input, init) {
-        const requestUrl = typeof input === 'string' ? new URL(input, window.location.origin) : input.url;
+        const requestUrl = new URL(typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url), window.location.origin);
+
+        if (requestUrl.pathname.startsWith('/api/native/')) {
+            const response = await originalFetch.apply(this, arguments);
+            if (requestUrl.pathname.startsWith('/api/native/vod/') && response.status === 401) window.NativeSources?.requireLogin();
+            return response;
+        }
         
-        if (requestUrl.pathname.startsWith('/api/')) {
+        if (requestUrl.pathname === '/api/search' || requestUrl.pathname === '/api/detail') {
             if (window.isPasswordProtected && window.isPasswordVerified) {
                 if (window.isPasswordProtected() && !window.isPasswordVerified()) {
                     return;

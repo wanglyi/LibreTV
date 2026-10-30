@@ -1,0 +1,25 @@
+[Unit]
+Description=LibreTV native source adapter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=libretv-sources
+Group=libretv-sources
+EnvironmentFile=/etc/libretv-sources.env
+ExecStart=/opt/libretv-sources/native-sources
+Restart=on-failure
+RestartSec=5
+StateDirectory=libretv-sources
+MemoryMax=384M
+CPUQuota=75%
+TasksMax=96
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

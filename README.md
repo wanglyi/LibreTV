@@ -1,5 +1,24 @@
 # LibreTV - 免费在线视频搜索与观看平台
 
+## 本实例新增站源（2026-10-30）
+
+已加入红果短剧、韩小圈、鬼片影视的适配入口。网站保留 Cloudflare Pages 部署，独立服务器运行 `services/native-sources`，提供搜索、选集和浏览器 HLS 播放。红果的请求签名与加密媒体处理在服务端完成。
+
+Pages 生产环境需要保留 `PASSWORD`，并增加：
+
+| 类型 | 名称 | 用途 |
+| --- | --- | --- |
+| 文本 | `NATIVE_SOURCE_ORIGIN` | 适配服务 HTTPS 地址，例如 `https://tv-sources.chrest.xyz` |
+| 密钥 | `NATIVE_SOURCE_TOKEN` | 与服务器 `SOURCE_TOKEN` 一致的随机服务密钥 |
+
+保存变量后重新部署 Pages。新增站源首次使用时，需要重新输入网站访问密码，以建立服务端验证的 HttpOnly 会话；已有普通源仍使用原来的请求流程。不要把服务密钥填入客户端 JavaScript 或提交到 GitHub。
+
+使用方式：在设置的数据源列表中勾选新增片源，在首页搜索剧名，打开结果后选择分集。播放地址会在重新进入播放器时刷新；单集按需准备并缓存，缓存、并发受服务器配置限制。准备中的视频可能需要等待可播放分片，远端位置的拖动取决于已准备进度。青空等需要额外登录授权的站源本次未开放。
+
+服务的 Docker、systemd 配置及源码来源见 [站源服务说明](services/native-sources/README.md)。已验证红果《床单下的秘密》的搜索、55 集详情、服务端 HLS 转换，以及浏览器 1080P 实际播放；站源内容和可用性仍取决于上游。
+
+自动检查：`npm test`；Go 服务检查：在 `services/native-sources` 中运行 `go test ./cmd/server`。本地部署密钥、视频缓存与验证产物保存在忽略目录，不属于发布源码。
+
 <div align="center">
   <img src="image/logo.png" alt="LibreTV Logo" width="120">
   <br>

@@ -95,7 +95,8 @@ const isWebkit = (typeof window.webkitConvertPointFromNodeToPage === 'function')
 Artplayer.FULLSCREEN_WEB_IN_BODY = true;
 
 // 页面加载
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    if (window.NativeSources) await window.NativeSources.ready;
     // 先检查用户是否已通过密码验证
     if (!isPasswordVerified()) {
         // 隐藏加载提示
@@ -114,7 +115,7 @@ document.addEventListener('passwordVerified', () => {
 });
 
 // 初始化页面内容
-function initializePageContent() {
+async function initializePageContent() {
 
     // 解析URL参数
     const urlParams = new URLSearchParams(window.location.search);
@@ -122,8 +123,21 @@ function initializePageContent() {
     const title = urlParams.get('title');
     const sourceCode = urlParams.get('source');
     let index = parseInt(urlParams.get('index') || '0');
-    const episodesList = urlParams.get('episodes'); // 从URL获取集数信息
+    let episodesList = urlParams.get('episodes'); // 从URL获取集数信息
     const savedPosition = parseInt(urlParams.get('position') || '0'); // 获取保存的播放位置
+    if (window.NativeSources && API_SITES[sourceCode]?.native) {
+        try {
+            const fresh = await window.NativeSources.refreshPlayback(sourceCode, urlParams.get('id'), index);
+            if (fresh) {
+                videoUrl = fresh.url;
+                episodesList = encodeURIComponent(JSON.stringify(fresh.episodes));
+                localStorage.setItem('currentEpisodes', JSON.stringify(fresh.episodes));
+            }
+        } catch (error) {
+            showError(error.message || '暂时无法获取播放地址');
+            return;
+        }
+    }
     // 解决历史记录问题：检查URL是否是player.html开头的链接
     // 如果是，说明这是历史记录重定向，需要解析真实的视频URL
     if (videoUrl && videoUrl.includes('player.html')) {
@@ -411,7 +425,7 @@ function initPlayer(videoUrl) {
     // 配置HLS.js选项
     const hlsConfig = {
         debug: false,
-        loader: adFilteringEnabled ? CustomHlsJsLoader : Hls.DefaultConfig.loader,
+        loader: adFilteringEnabled && !window.NativeSources?.isNativeUrl(videoUrl) ? CustomHlsJsLoader : Hls.DefaultConfig.loader,
         enableWorker: true,
         lowLatencyMode: false,
         backBufferLength: 90,
@@ -436,6 +450,12 @@ function initPlayer(videoUrl) {
         liveSyncDurationCount: 3,
         liveDurationInfinity: false
     };
+    if (window.NativeSources?.isNativeUrl(videoUrl)) {
+        hlsConfig.startPosition = 0;
+        hlsConfig.manifestLoadingTimeOut = 60000;
+        hlsConfig.levelLoadingTimeOut = 60000;
+        hlsConfig.fragLoadingTimeOut = 30000;
+    }
 
     // Create new ArtPlayer instance
     art = new Artplayer({

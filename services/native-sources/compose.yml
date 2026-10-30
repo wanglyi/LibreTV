@@ -1,0 +1,18 @@
+services:
+  sources:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3987:3987"
+    environment:
+      SOURCE_TOKEN: ${SOURCE_TOKEN:?Set a private service token}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-https://tv.chrest.xyz}
+      CACHE_MAX_MB: ${CACHE_MAX_MB:-2048}
+      MAX_ACTIVE_JOBS: 1
+    volumes:
+      - source-data:/data
+    mem_limit: 384m
+    cpus: 0.75
+    pids_limit: 96
+volumes:
+  source-data:

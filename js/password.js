@@ -52,6 +52,7 @@ async function verifyPassword(password) {
         const isValid = inputHash === correctHash;
 
         if (isValid) {
+            if (window.NativeSources && !await window.NativeSources.authenticate(password)) return false;
             localStorage.setItem(PASSWORD_CONFIG.localStorageKey, JSON.stringify({
                 verified: true,
                 timestamp: Date.now(),
@@ -113,8 +114,8 @@ function showPasswordModal() {
     const passwordModal = document.getElementById('passwordModal');
     if (passwordModal) {
         // 防止出现豆瓣区域滚动条
-        document.getElementById('doubanArea').classList.add('hidden');
-        document.getElementById('passwordCancelBtn').classList.add('hidden');
+        document.getElementById('doubanArea')?.classList.add('hidden');
+        document.getElementById('passwordCancelBtn')?.classList.add('hidden');
 
         // 检查是否需要强制设置密码
         if (isPasswordRequired()) {
@@ -175,9 +176,9 @@ function hidePasswordModal() {
         passwordModal.style.display = 'none';
 
         // 如果启用豆瓣区域则显示豆瓣区域
-        if (localStorage.getItem('doubanEnabled') === 'true') {
+        if (localStorage.getItem('doubanEnabled') === 'true' && document.getElementById('doubanArea')) {
             document.getElementById('doubanArea').classList.remove('hidden');
-            initDouban();
+            if (typeof initDouban === 'function') initDouban();
         }
     }
 }

@@ -43,6 +43,7 @@ export async function onRequest(context) {
         if(!await validSession(request,env))return json({code:401},401);
         try {
             const target=new URL(env.NATIVE_SOURCE_ORIGIN);target.pathname=target.pathname.replace(/\/$/,'')+'/healthz';
+            if(url.searchParams.get('inspect')==='1')return json({origin:target.origin,path:target.pathname});
             const health=await fetch(target.toString(),{headers:{'X-Source-Token':env.NATIVE_SOURCE_TOKEN,'Accept-Encoding':'identity','User-Agent':'LibreTV-Native-Gateway/1.0'},redirect:'error'});
             return json({origin:target.hostname,status:health.status,type:health.headers.get('Content-Type'),response:(await health.text()).slice(0,200)});
         } catch {return json({code:502,msg:'站源服务连接失败'},502)}
